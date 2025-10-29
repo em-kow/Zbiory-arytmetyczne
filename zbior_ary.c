@@ -313,8 +313,8 @@ bool nalezy(zbior_ary A, int b){
 }
 
 unsigned moc(zbior_ary A){
-    int licznik = 0;
-    for(int i = 0; i < A.roz; i ++) licznik += 1 + ((A.tab[i].kon - A.tab[i].pocz) / q); 
+    unsigned licznik = 0;
+    for(int i = 0; i < A.roz; i ++) licznik += (unsigned)(1 + ((A.tab[i].kon - A.tab[i].pocz) / q)); 
     return (unsigned int)licznik;
 }
 
