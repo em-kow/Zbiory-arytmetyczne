@@ -16,7 +16,14 @@ typedef struct zbior_ary{
   // roz to realny rozmiar tego zbioru czyli ile elementow tablicy jest zajete
 } zbior_ary;
 
-void zaalokuj(zbior_ary *tmp, int n); // to mi tworzy tablice n-elementowa w moim strukcie
+void zaalokuj(ciag ** tmp, int n);
+
+void stworz_ciag(zbior_ary *tmp, int n); // to mi tworzy tablice n-elementowa w moim strukcie
+
+void wyczysc_zbior(zbior_ary *tmp);
+
+void wrzuc(int *x, int *y, ciag *X, ciag *Y);
+
 
 bool porownaj(ciag a, ciag b); // ta funkcja mi zwraca ktory ciag arytmetyczny jest wczesniej na osi
 
@@ -49,3 +56,4 @@ unsigned moc(zbior_ary A);
 unsigned ary(zbior_ary A);
 
 #endif
+
