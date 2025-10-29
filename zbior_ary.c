@@ -1,14 +1,43 @@
+// Mikolaj Kowalski
+// code review: Bartosz Tarnowski
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "zbior_ary.h"
 
 static int q; //trzymam globalnie stala zmienna q
 
-void zaalokuj(zbior_ary *tmp, int n){ // ta funkcja tworzy mi pusta tablice w mojej reprezentacji zbioru na tyle elementow ile potrzebuje
-    if(n == 0) n = 1; // upewniam sie czy nie mallocuje przypadkiem zera
-    tmp->tab = malloc((size_t)n * sizeof(ciag));
-    for(int i = 0; i < n; i ++) tmp->tab[i] = (ciag){-0, 0, -1}; //jezeli element zbioru nie istnieje to o ile jego komorka istnieje jej modulo jest rowne -1
+void zaalokuj(ciag ** tmp, int n){
+    if(n <= 0){
+        *tmp = NULL;
+        return;
+    }
+    *tmp = malloc((size_t)n * sizeof(ciag));
+    assert(*tmp != NULL);
+    for(int i = 0; i < n; i ++) (*tmp)[i] = (ciag){0, 0, -1};
+}
+
+void stworz_zbior(zbior_ary *tmp, int n){ // ta funkcja tworzy mi pusta tablice w mojej reprezentacji zbioru na tyle elementow ile potrzebuje
+    zaalokuj(&tmp->tab, n);
+    tmp->roz = n;
+}
+
+void wyczysc_zbior(zbior_ary *tmp){
+    if(!tmp) return;
+    if(tmp->roz == 0){
+        free(tmp->tab);
+        tmp->tab = NULL;
+        return;
+    }
+    zbior_ary nowy_zbior;
+    stworz_zbior(&nowy_zbior, tmp->roz);
+    if(nowy_zbior.tab == NULL) return;
+    for(int i = 0; i < tmp->roz; i ++) nowy_zbior.tab[i] = tmp->tab[i];
+    free(tmp -> tab);
+    *tmp = nowy_zbior;
 }
 
 bool porownaj(ciag a, ciag b){ // standardowe sprawdzenie ktory przedzial jest wczesniej na osi
@@ -20,8 +49,7 @@ bool porownaj(ciag a, ciag b){ // standardowe sprawdzenie ktory przedzial jest w
 zbior_ary ciag_arytmetyczny(int a, int Q, int b){ //inicjalizacja ciagu
     zbior_ary wynik; // wynik - zbior ktory chce zwrocic
     q = Q; // Q jest takie same w kazdym wywolaniu funkcji wiec ustalam je globalnie
-    wynik.roz = 1; // zbior sie sklada z jednego ciagu
-    zaalokuj(&wynik, 1);
+    stworz_zbior(&wynik, 1);
     wynik.tab[0].pocz = a; wynik.tab[0].kon = b;
     wynik.tab[0].mod = a % q;
     if(wynik.tab[0].mod < 0) wynik.tab[0].mod += q;
@@ -32,69 +60,60 @@ zbior_ary singleton(int a){ // singleton to ciag [a, a]
     return ciag_arytmetyczny(a, q, a);
 }
 
+void wrzuc(int *x, int *y, ciag *X, ciag *Y) { //na indeks x w X daje element z indeksu y w Y i inkrementuje x oraz y
+    X[*x] = Y[*y];
+    ++(*x);
+    ++(*y);
+}
+
+
 zbior_ary suma(zbior_ary A, zbior_ary B){
     zbior_ary wynik; // wynik - zbior ktory chce zwrocic
-    zaalokuj(&wynik, A.roz + B.roz); // rozmiar tablicy w wynik na pewno nie bedzie wiekszy niz A.roz + B.roz
+    stworz_zbior(&wynik, A.roz + B.roz); // rozmiar tablicy w wynik na pewno nie bedzie wiekszy niz A.roz + B.roz
     int wskaznik_wynik = 0, wskaznik_A = 0, wskaznik_B = 0;
     // sa to nasze iteratory, wskaznik_wynik - ktory bedzie nastepny ciag ktory dodamy do zbioru wynik, wskaznik_X - nastepny rozpatrywany ciag w zbiorze X
     while(wskaznik_A != A.roz || wskaznik_B != B.roz){ // dopoki nie rozpatrzymy wszystkich ciagow w obu zbiorach
         if(wskaznik_A == A.roz){ // jesli rozpatrzymy juz wszystko w A to do wyniku dodajemy juz tylko ciagi z B
-            wynik.tab[wskaznik_wynik] = B.tab[wskaznik_B];
-            ++ wskaznik_wynik;
-            ++ wskaznik_B;
+            wrzuc(&wskaznik_wynik, &wskaznik_B, wynik.tab, B.tab);
             continue;
         }
         if(wskaznik_B == B.roz){ // analogicznie
-            wynik.tab[wskaznik_wynik] = A.tab[wskaznik_A];
-            ++ wskaznik_wynik;
-            ++ wskaznik_A;
+            wrzuc(&wskaznik_wynik, &wskaznik_A, wynik.tab, A.tab);
             continue;
         }
         // teraz przypadek ze oba zbiory nie sa jeszcze do konca rozpatrzone
         if(wskaznik_A != A.roz && wskaznik_B != B.roz){
             // ciagi w zbiorze trzymamy posortowane najpierw po q, wiec jesli w ktoryms ze zbiorow aktualnie rozpatrujemy ciag ktory ma modulo mniejsze niz aktualnie rozpatrywany ciag w drugim zbiorze, to dajemy go do wyniku najpierw
             if(A.tab[wskaznik_A].mod < B.tab[wskaznik_B].mod){
-                wynik.tab[wskaznik_wynik] = A.tab[wskaznik_A];
-                ++ wskaznik_wynik;
-                ++ wskaznik_A;
+                wrzuc(&wskaznik_wynik, &wskaznik_A, wynik.tab, A.tab);
                 continue;
             }
             if(A.tab[wskaznik_A].mod > B.tab[wskaznik_B].mod){
-                wynik.tab[wskaznik_wynik] = B.tab[wskaznik_B];
-                ++ wskaznik_wynik;
-                ++ wskaznik_B;
+                wrzuc(&wskaznik_wynik, &wskaznik_B, wynik.tab, B.tab);
                 continue;
             }
             // teraz przypadek ze wszystkie przedzialy maja to samo modulo q, to znaczy ze bede musial je jakos scalic
             int aktualne_modulo = A.tab[wskaznik_A].mod;
             // dla wygody dla kazdego mozliwego modulo q stworze tymczasową tablice ktora trzyma mi posortowane ciagi nalezace do zbioru A lub B posortowane po kolejnosci na osi
-            ciag *tmp = malloc((size_t)(A.roz + B.roz) * sizeof(ciag));
+            ciag *tmp;
+            zaalokuj(&tmp, A.roz + B.roz);
             int wskaznik_tmp = 0; // ten wskaznik reprezentuje nastepne miejsce gdzie dodam cos do tablicy tmp
-            while(true){
-                if((wskaznik_A == A.roz || A.tab[wskaznik_A].mod != aktualne_modulo) && (wskaznik_B == B.roz || B.tab[wskaznik_B].mod != aktualne_modulo)) break; // jesli oba ciagi albo sie skoncza albo nastepne ciagi juz beda mialy inne modulo to oczywiscie break
+            while((wskaznik_A != A.roz && A.tab[wskaznik_A].mod == aktualne_modulo) || (wskaznik_B != B.roz && B.tab[wskaznik_B].mod == aktualne_modulo)){ // dopoki zbiory sie nie skonczyly i mam aktualne modulo
                 if(wskaznik_A == A.roz || A.tab[wskaznik_A].mod != aktualne_modulo){ // jesli A sie skonczyl lub nastepny ciag ma juz inne modulo to dodajemy ciag z B
-                    tmp[wskaznik_tmp] = B.tab[wskaznik_B];
-                    ++ wskaznik_B;
-                    ++ wskaznik_tmp;
+                    wrzuc(&wskaznik_tmp, &wskaznik_B, tmp, B.tab);
                     continue;
                 }
                 if(wskaznik_B == B.roz || B.tab[wskaznik_B].mod != aktualne_modulo){ // analogicznie
-                    tmp[wskaznik_tmp] = A.tab[wskaznik_A];
-                    ++ wskaznik_A;
-                    ++ wskaznik_tmp;
+                    wrzuc(&wskaznik_tmp, &wskaznik_A, tmp, A.tab);
                     continue;
                 }
                 // zatem wiemy ze obecnie rozpatrywane elementy w obu ciagach maja to samo modulo wiec teraz do tymczasowej tablicy dodajemy ten ciag ktory jest wczesniej
                 if(porownaj(A.tab[wskaznik_A], B.tab[wskaznik_B])){
-                    tmp[wskaznik_tmp] = A.tab[wskaznik_A];
-                    ++ wskaznik_A;
-                    ++ wskaznik_tmp;
+                    wrzuc(&wskaznik_tmp, &wskaznik_A, tmp, A.tab);
                     continue;
                 }
                 else{
-                    tmp[wskaznik_tmp] = B.tab[wskaznik_B];
-                    ++ wskaznik_B;
-                    ++ wskaznik_tmp;
+                    wrzuc(&wskaznik_tmp, &wskaznik_B, tmp, B.tab);
                     continue;
                 }
             }
@@ -121,16 +140,16 @@ zbior_ary suma(zbior_ary A, zbior_ary B){
         if(wynik.tab[i].mod != -1) ++ licznik; // sprawdzam czy komorka jest niepusta
     }
     wynik.roz = licznik;
+    wyczysc_zbior(&wynik);
     return wynik;
 }
 
 zbior_ary iloczyn(zbior_ary A, zbior_ary B){
     zbior_ary wynik; // zbior ktory chce zwrocic
-    zaalokuj(&wynik, A.roz + B.roz); // rozmiar tablicy w wynik na pewno nie bedzie wiekszy niz A.roz + B.roz
+    stworz_zbior(&wynik, A.roz + B.roz); // rozmiar tablicy w wynik na pewno nie bedzie wiekszy niz A.roz + B.roz
     int wskaznik_wynik = 0, wskaznik_A = 0, wskaznik_B = 0;
     // wskazniki oznaczaja to samo co w funkcji suma
-    while(true){
-        if(wskaznik_A == A.roz || wskaznik_B == B.roz) break; // jesli w ktoryms ze zbiorow rozpatrzymy juz wszystko, to na pewno nic wiecej nie dodamy do iloczynu
+    while(wskaznik_A != A.roz && wskaznik_B != B.roz){ // jesli w ktorymkolwiek zbiorze rozpatrzymy wszystko to na pewno nie dodamy wiecej do iloczynu
         if(A.tab[wskaznik_A].mod < B.tab[wskaznik_B].mod){
             ++ wskaznik_A;
             continue;
@@ -143,20 +162,18 @@ zbior_ary iloczyn(zbior_ary A, zbior_ary B){
         // teraz zakladamy ze modulo w aktualnie rozpatrywanych ciągach w obu zbiorach jest takie samo, wiec potencjalnie czesc wspolna moze istniec
         if(A.tab[wskaznik_A].mod == B.tab[wskaznik_B].mod){
             int aktualne_modulo = A.tab[wskaznik_A].mod;
-            ciag *tmp_A = malloc((size_t)(A.roz) * sizeof(ciag)); // pomocnicza tablica dla zbioru A
-            ciag *tmp_B = malloc((size_t)(B.roz) * sizeof(ciag)); // pomocnicza tablica dla zbioru B
+            ciag *tmp_A; // pomocnicza tablica dla zbioru A
+            ciag *tmp_B; // pomocnicza tablica dla zbioru B
+            zaalokuj(&tmp_A, A.roz);
+            zaalokuj(&tmp_B, B.roz);
             // dla wygody, analogicznie jak w sumie trzymam dwie pomocnicze tablice trzymające posortowane ciagi z aktualnym modulo w danym zbiorze
             int wskaznik_tmp_A = 0, wskaznik_tmp_B = 0;
             // te iteratory oznacają ktory nastepny ciag dodam w danym zbiorze pomocniczym
             while(wskaznik_A != A.roz && A.tab[wskaznik_A].mod == aktualne_modulo){
-                tmp_A[wskaznik_tmp_A] = A.tab[wskaznik_A];
-                wskaznik_A ++;
-                wskaznik_tmp_A ++;
+                wrzuc(&wskaznik_tmp_A, &wskaznik_A, tmp_A, A.tab);
             }
             while(wskaznik_B != B.roz && B.tab[wskaznik_B].mod == aktualne_modulo){
-                tmp_B[wskaznik_tmp_B] = B.tab[wskaznik_B];
-                wskaznik_B ++;
-                wskaznik_tmp_B ++;
+                wrzuc(&wskaznik_tmp_B, &wskaznik_B, tmp_B, B.tab);
             }
             // standardowo uzupelniamy tablice pomocnicze
             //teraz juz mozemy zrobic standardowy algorytm szukania czesci wspolnej
@@ -183,29 +200,26 @@ zbior_ary iloczyn(zbior_ary A, zbior_ary B){
         if(wynik.tab[i].mod != -1) ++ licznik;
     }
     wynik.roz = licznik;
+    wyczysc_zbior(&wynik);
     return wynik;
 }
 
 zbior_ary roznica(zbior_ary A, zbior_ary B){
     zbior_ary wynik;
-    zaalokuj(&wynik, A.roz + B.roz);
+    stworz_zbior(&wynik, A.roz + B.roz);
     int wskaznik_wynik = 0, wskaznik_A = 0, wskaznik_B = 0;
     // linijki powyzej standardowo tak jak w funkcjach suma i iloczyn
-    while(true){
-        if(wskaznik_A == A.roz) break; // jesli rozpatrzymy juz wszystko w A to na pewno nic wiecej nie dodamy do wyniku
+    while(wskaznik_A != A.roz){
+        // jesli rozpatrzymy juz wszystko w A to na pewno nic wiecej nie dodamy do wyniku
         if(wskaznik_B == B.roz){ // jesli rozpatrzymy wszystko w B to na pewno mozemy do wyniku dodac wszystko co zostalo nierozpatrzone w A
             while(wskaznik_A != A.roz){
-                wynik.tab[wskaznik_wynik] = A.tab[wskaznik_A];
-                wskaznik_wynik ++;
-                wskaznik_A ++;
+                wrzuc(&wskaznik_wynik, &wskaznik_A, wynik.tab, A.tab);
             }
             break;
         }
         // zatem w tym momencie wiemy ze na pewno cos zostalo do rozpatrzenia w obu zbiorach
         if(A.tab[wskaznik_A].mod < B.tab[wskaznik_B].mod){ // jesli modulo w aktualnie rozpatrywanym ciagu w A jest mniejsze niz w -||- w B to na pewno juz nic z B nam nie zabierze tego ciągu, wiec mozemy go dodac do wyniku
-            wynik.tab[wskaznik_wynik] = A.tab[wskaznik_A];
-            wskaznik_wynik ++;
-            wskaznik_A ++;
+            wrzuc(&wskaznik_wynik, &wskaznik_A, wynik.tab, A.tab);
             continue;
         }
         if(A.tab[wskaznik_A].mod > B.tab[wskaznik_B].mod){ // jesli modulo w aktualnie rozpatrywanym ciagu w B jest mniejsze niz w -||- w A to pewno aktualny ciag z B nic nam nie zabiera z A wiec powinnismy rozpatrywac kolejne ciagi z B
@@ -215,19 +229,15 @@ zbior_ary roznica(zbior_ary A, zbior_ary B){
         if(A.tab[wskaznik_A].mod == B.tab[wskaznik_B].mod){ // teraz juz wiemy ze aktualnie rozpatrywane ciagi w A i B mają to samo modulo
             // zrobmy cale odejmowanie ciagow z modulo rownym temu aktualnemu za jednym razem
             int aktualne_modulo = A.tab[wskaznik_A].mod;
-            ciag *tmp_A = malloc((size_t)(A.roz) * sizeof(ciag));
-            ciag *tmp_B = malloc((size_t)(B.roz) * sizeof(ciag));
+            ciag *tmp_A, *tmp_B;
+            zaalokuj(&tmp_A, A.roz); zaalokuj(&tmp_B, B.roz);
             // trzymam dwie pomocnicze tablice reprezentujace ciagi z aktualnym modulo w obu zbiorach
             int wskaznik_tmp_A = 0, wskaznik_tmp_B = 0;
             while(wskaznik_A != A.roz && A.tab[wskaznik_A].mod == aktualne_modulo){
-                tmp_A[wskaznik_tmp_A] = A.tab[wskaznik_A];
-                wskaznik_A ++;
-                wskaznik_tmp_A ++;
+                wrzuc(&wskaznik_tmp_A, &wskaznik_A, tmp_A, A.tab);
             }
             while(wskaznik_B != B.roz && B.tab[wskaznik_B].mod == aktualne_modulo){
-                tmp_B[wskaznik_tmp_B] = B.tab[wskaznik_B];
-                wskaznik_B ++;
-                wskaznik_tmp_B ++;
+                wrzuc(&wskaznik_tmp_B, &wskaznik_B, tmp_B, B.tab);
             }
             // teraz juz mozemy zrobic standardowy algorytm odejmowania
             int act_B = 0;
@@ -257,6 +267,7 @@ zbior_ary roznica(zbior_ary A, zbior_ary B){
         if(wynik.tab[i].mod != -1) ++ licznik;
     }
     wynik.roz = licznik;
+    wyczysc_zbior(&wynik);
     return wynik;
 }
 
@@ -315,7 +326,7 @@ bool nalezy(zbior_ary A, int b){
 
 unsigned moc(zbior_ary A){
     unsigned licznik = 0;
-    for(int i = 0; i < A.roz; i ++) licznik += (unsigned)(1 + ((A.tab[i].kon - A.tab[i].pocz) / q)); 
+    for(int i = 0; i < A.roz; i ++) licznik += (unsigned)(1 + (((unsigned)(A.tab[i].kon - A.tab[i].pocz)) / (unsigned)q)); 
     return (unsigned int)licznik;
 }
 
