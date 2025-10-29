@@ -7,7 +7,7 @@ static int q; //trzymam globalnie stala zmienna q
 
 void zaalokuj(zbior_ary *tmp, int n){ // ta funkcja tworzy mi pusta tablice w mojej reprezentacji zbioru na tyle elementow ile potrzebuje
     tmp->tab = malloc((size_t)n * sizeof(ciag));
-    for(int i = 0; i < n; i ++) tmp->tab[i] = (ciag){-1, -1, -1}; //jezeli element tablicy jest pusty to sa tam minus jedynki
+    for(int i = 0; i < n; i ++) tmp->tab[i] = (ciag){-0, 0, -1}; //jezeli element zbioru nie istnieje to o ile jego komorka istnieje jej modulo jest rowne -1
 }
 
 bool porownaj(ciag a, ciag b){ // standardowe sprawdzenie ktory przedzial jest wczesniej na osi
