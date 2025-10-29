@@ -6,6 +6,7 @@
 static int q; //trzymam globalnie stala zmienna q
 
 void zaalokuj(zbior_ary *tmp, int n){ // ta funkcja tworzy mi pusta tablice w mojej reprezentacji zbioru na tyle elementow ile potrzebuje
+    if(n == 0) n = 1; // upewniam sie czy nie mallocuje przypadkiem zera
     tmp->tab = malloc((size_t)n * sizeof(ciag));
     for(int i = 0; i < n; i ++) tmp->tab[i] = (ciag){-0, 0, -1}; //jezeli element zbioru nie istnieje to o ile jego komorka istnieje jej modulo jest rowne -1
 }
