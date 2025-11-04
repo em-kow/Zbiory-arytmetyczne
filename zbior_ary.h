@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 typedef struct ciag{
-    int pocz, kon, mod; // ciag arytmetyczny [pocz, pocz + q, ..., kon] reprezentuje jako [pocz, kon]
+    long long pocz, kon, mod; // ciag arytmetyczny [pocz, pocz + q, ..., kon] reprezentuje jako [pocz, kon]
     // dla wygody trzymam jeszcze wartosc mod ktora jest rowna mod = pocz % q = kon % q
 } ciag;
 
@@ -56,4 +56,3 @@ unsigned moc(zbior_ary A);
 unsigned ary(zbior_ary A);
 
 #endif
-
