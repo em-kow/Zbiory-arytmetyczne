@@ -8,7 +8,7 @@
 #include <assert.h>
 #include "zbior_ary.h"
 
-static int q; //trzymam globalnie stala zmienna q
+static long long q; //trzymam globalnie stala zmienna q
 
 void zaalokuj(ciag ** tmp, int n){
     if(n <= 0){
@@ -50,14 +50,14 @@ zbior_ary ciag_arytmetyczny(int a, int Q, int b){ //inicjalizacja ciagu
     zbior_ary wynik; // wynik - zbior ktory chce zwrocic
     q = Q; // Q jest takie same w kazdym wywolaniu funkcji wiec ustalam je globalnie
     stworz_zbior(&wynik, 1);
-    wynik.tab[0].pocz = a; wynik.tab[0].kon = b;
-    wynik.tab[0].mod = a % q;
+    wynik.tab[0].pocz = (long long)a; wynik.tab[0].kon = (long long)b;
+    wynik.tab[0].mod = (long long)a % q;
     if(wynik.tab[0].mod < 0) wynik.tab[0].mod += q;
     return wynik;
 }
 
 zbior_ary singleton(int a){ // singleton to ciag [a, a]
-    return ciag_arytmetyczny(a, q, a);
+    return ciag_arytmetyczny(a, (int)q, a);
 }
 
 void wrzuc(int *x, int *y, ciag *X, ciag *Y) { //na indeks x w X daje element z indeksu y w Y i inkrementuje x oraz y
@@ -93,7 +93,7 @@ zbior_ary suma(zbior_ary A, zbior_ary B){
                 continue;
             }
             // teraz przypadek ze wszystkie przedzialy maja to samo modulo q, to znaczy ze bede musial je jakos scalic
-            int aktualne_modulo = A.tab[wskaznik_A].mod;
+            long long aktualne_modulo = A.tab[wskaznik_A].mod;
             // dla wygody dla kazdego mozliwego modulo q stworze tymczasową tablice ktora trzyma mi posortowane ciagi nalezace do zbioru A lub B posortowane po kolejnosci na osi
             ciag *tmp;
             zaalokuj(&tmp, A.roz + B.roz);
@@ -118,7 +118,8 @@ zbior_ary suma(zbior_ary A, zbior_ary B){
                 }
             }
             // w tym momencie mamy w tablicy tmp posortowane przedzialy o tym samym mod q wiec mozemy zastosowac standardowy algorytm dodawania przedzialow
-            int a = tmp[0].pocz, b = tmp[0].kon;
+            // iteruje sie po posortowanych przedzialach i jesli moge rozszerzyc jakis przedzial bo sie "styka" z innym to rozszerzam
+            long long a = tmp[0].pocz, b = tmp[0].kon;
             for(int i = 1; i < wskaznik_tmp; i ++){
                 if(tmp[i].pocz - q <= b){
                     if(tmp[i].kon > b) b = tmp[i].kon;
@@ -161,7 +162,7 @@ zbior_ary iloczyn(zbior_ary A, zbior_ary B){
         // zeby znalezc jakakolwiek czesc wspolną to modulo w ciagach z obu zbiorow musi byc takie samo, zatem jesli jest inne to rozpatrujemy kolejny ciag w zbiorze w ktorym modulo aktualnie rozpatrywanego ciagu jest mniejsze
         // teraz zakladamy ze modulo w aktualnie rozpatrywanych ciągach w obu zbiorach jest takie samo, wiec potencjalnie czesc wspolna moze istniec
         if(A.tab[wskaznik_A].mod == B.tab[wskaznik_B].mod){
-            int aktualne_modulo = A.tab[wskaznik_A].mod;
+            long long aktualne_modulo = A.tab[wskaznik_A].mod;
             ciag *tmp_A; // pomocnicza tablica dla zbioru A
             ciag *tmp_B; // pomocnicza tablica dla zbioru B
             zaalokuj(&tmp_A, A.roz);
@@ -177,11 +178,13 @@ zbior_ary iloczyn(zbior_ary A, zbior_ary B){
             }
             // standardowo uzupelniamy tablice pomocnicze
             //teraz juz mozemy zrobic standardowy algorytm szukania czesci wspolnej
+            // iteruje sie po przedzialach w obu zbiorach i jesli sie przecinaja to dodaje do wyniku przeciecie
+            // przesuwam wskaznik na tym zbiorze gdzie aktualny przedzial sie konczy szybciej bo ten pozniejszy moze sie jeszcze z czyms przeciac
             int akt_A = 0, akt_B = 0; //aktualne iteratory po zbiorach pomocniczych
             while(akt_A != wskaznik_tmp_A && akt_B != wskaznik_tmp_B){ // wiemy ze wskaznik_tmp_X to po algorytmie uzupelniania zbiorow pomocniczych to rozmiar danego zbioru pomocniczego
-                int pocz = tmp_A[akt_A].pocz;
+                long long pocz = tmp_A[akt_A].pocz;
                 if(tmp_B[akt_B].pocz > pocz) pocz = tmp_B[akt_B].pocz;
-                int kon = tmp_A[akt_A].kon;
+                long long kon = tmp_A[akt_A].kon;
                 if(tmp_B[akt_B].kon < kon) kon = tmp_B[akt_B].kon;
                 if(pocz <= kon){
                     wynik.tab[wskaznik_wynik] = (ciag){pocz, kon, aktualne_modulo};
@@ -228,7 +231,7 @@ zbior_ary roznica(zbior_ary A, zbior_ary B){
         }
         if(A.tab[wskaznik_A].mod == B.tab[wskaznik_B].mod){ // teraz juz wiemy ze aktualnie rozpatrywane ciagi w A i B mają to samo modulo
             // zrobmy cale odejmowanie ciagow z modulo rownym temu aktualnemu za jednym razem
-            int aktualne_modulo = A.tab[wskaznik_A].mod;
+            long long aktualne_modulo = A.tab[wskaznik_A].mod;
             ciag *tmp_A, *tmp_B;
             zaalokuj(&tmp_A, A.roz); zaalokuj(&tmp_B, B.roz);
             // trzymam dwie pomocnicze tablice reprezentujace ciagi z aktualnym modulo w obu zbiorach
@@ -240,10 +243,14 @@ zbior_ary roznica(zbior_ary A, zbior_ary B){
                 wrzuc(&wskaznik_tmp_B, &wskaznik_B, tmp_B, B.tab);
             }
             // teraz juz mozemy zrobic standardowy algorytm odejmowania
+            // szukam przedzialu w B ktory mi sie przecina z aktualnym przedzialem w A
+            // przechodze do kolejnych przedzialow w B dopoki mi sie przecinaja z aktualnym przedzialem w A
+            // jesli zostala jakas koncowka w A to dodaje ja do wyniku
+            // przechodze do kolejnego przedzialu z B
             int act_B = 0;
             for(int i = 0; i < wskaznik_tmp_A; i ++){
                 while(act_B < wskaznik_tmp_B && tmp_B[act_B].kon < tmp_A[i].pocz) ++ act_B;
-                int pocz = tmp_A[i].pocz;
+                long long pocz = tmp_A[i].pocz;
                 while(act_B < wskaznik_tmp_B && tmp_B[act_B].pocz <= tmp_A[i].kon){
                     if(tmp_B[act_B].pocz > pocz){
                         wynik.tab[wskaznik_wynik] = (ciag){pocz, tmp_B[act_B].pocz - q, aktualne_modulo};
@@ -273,7 +280,7 @@ zbior_ary roznica(zbior_ary A, zbior_ary B){
 
 bool nalezy(zbior_ary A, int b){
     if(A.roz == 0) return 0;
-    int aktualne_modulo = b % q;
+    long long aktualne_modulo = b % q;
     if(aktualne_modulo < 0) aktualne_modulo += q;
     if(A.tab[A.roz - 1].mod < aktualne_modulo) return 0; // jezeli wszystkie ciagi w zbiorze mają modulo mniejsze niz modulo liczby b to na pewno b nie nalezy do zbioru (wystarczy sprawdzic ostatni ciag bo sa one posortowane wzgledem q)
     // szukamy takiego przedzialu ktory ma modulo q
@@ -325,8 +332,8 @@ bool nalezy(zbior_ary A, int b){
 }
 
 unsigned moc(zbior_ary A){
-    unsigned licznik = 0;
-    for(int i = 0; i < A.roz; i ++) licznik += (unsigned)(1 + (((unsigned)(A.tab[i].kon - A.tab[i].pocz)) / (unsigned)q)); 
+    long long licznik = 0;
+    for(int i = 0; i < A.roz; i ++) licznik += (long long)(1ll + (((long long)(A.tab[i].kon - A.tab[i].pocz)) / q)); 
     return (unsigned int)licznik;
 }
 
